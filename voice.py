@@ -1,10 +1,15 @@
 import threading
+import time
 
 import speech_recognition as sr
 
 
+speaking = threading.Event()
+
+
 def speak(text):
     def run():
+        speaking.set()
         try:
             import pyttsx3
             engine = pyttsx3.init()
@@ -12,6 +17,8 @@ def speak(text):
             engine.runAndWait()
         except Exception:
             pass
+        finally:
+            speaking.clear()
 
     threading.Thread(target=run, daemon=True).start()
 
@@ -26,10 +33,21 @@ def start_voice(hud):
                 hud.set_listening(True)
                 while True:
                     try:
+                        if speaking.is_set():
+                            time.sleep(0.1)
+                            continue
                         audio = recognizer.listen(source, timeout=3, phrase_time_limit=12)
+                        if speaking.is_set():
+                            continue
                         command = recognizer.recognize_google(audio).strip()
                         hud.voice_event.emit(f"Heard: {command}")
-                        hud.command_received.emit(command)
+                        normalized = command.lower()
+                        if "jarvis" not in normalized:
+                            hud.voice_event.emit("Waiting for wake word: JARVIS")
+                            continue
+                        wake_index = normalized.find("jarvis")
+                        command = command[wake_index + len("jarvis"):].strip(" ,.!?")
+                        hud.command_received.emit(command or "jarvis")
                     except (sr.WaitTimeoutError, sr.UnknownValueError):
                         continue
                     except sr.RequestError as error:
