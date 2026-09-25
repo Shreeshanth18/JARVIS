@@ -111,9 +111,18 @@ class JarvisCore:
                 data = json.loads(result.read().decode("utf-8"))
             return data["choices"][0]["message"]["content"].strip()
         except urllib.error.HTTPError as error:
-            if error.code == 401:
-                return "AI authentication failed. Set a valid OpenAI API key in this same PowerShell window, then restart JARVIS."
-            return f"The AI service returned HTTP {error.code}."
+                details = error.read().decode("utf-8", errors="replace")
+                if error.code == 401:
+                    message = "AI authentication failed. Check that this is an active OpenAI API key, then restart JARVIS."
+                elif error.code == 429 and "insufficient_quota" in details:
+                    message = "OpenAI authenticated successfully, but this account has no API credits. Add billing or credits at platform.openai.com, then restart JARVIS."
+                elif error.code == 429:
+                    message = "OpenAI is rate-limiting requests. Wait a moment and try again."
+                elif error.code == 404:
+                    message = "The selected AI model is unavailable for this key. Set JARVIS_MODEL to a model enabled for your account."
+                else:
+                    message = f"The AI service returned HTTP {error.code}."
+                return message
         except (urllib.error.URLError, KeyError, json.JSONDecodeError) as error:
             return f"The AI service is unavailable: {error}"
 
@@ -150,10 +159,13 @@ class JarvisCore:
                         self.hud.ai_response.emit(answer, False)
             self.hud.ai_response.emit(answer or "The AI returned an empty response.", True)
         except urllib.error.HTTPError as error:
+            details = error.read().decode("utf-8", errors="replace")
             if error.code == 401:
                 message = "AI authentication failed. Check that this is an active OpenAI API key, then restart JARVIS."
+            elif error.code == 429 and "insufficient_quota" in details:
+                message = "OpenAI authenticated successfully, but this account has no API credits. Add billing or credits at platform.openai.com, then restart JARVIS."
             elif error.code == 429:
-                message = "OpenAI access is rate-limited or has no available credits for this account."
+                message = "OpenAI is rate-limiting requests. Wait a moment and try again."
             elif error.code == 404:
                 message = "The selected AI model is unavailable for this key. Set JARVIS_MODEL to a model enabled for your account."
             else:
