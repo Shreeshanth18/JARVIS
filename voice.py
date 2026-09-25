@@ -28,14 +28,15 @@ def start_voice(hud):
                     try:
                         audio = recognizer.listen(source, timeout=3, phrase_time_limit=12)
                         command = recognizer.recognize_google(audio).strip()
+                        hud.voice_event.emit(f"Heard: {command}")
                         hud.command_received.emit(command)
                     except (sr.WaitTimeoutError, sr.UnknownValueError):
                         continue
                     except sr.RequestError as error:
-                        hud.log(f"Speech recognition service unavailable: {error}")
+                        hud.voice_event.emit(f"Speech recognition unavailable: {error}")
                         break
         except (OSError, AttributeError) as error:
-            hud.log(f"Microphone unavailable: {error}")
+            hud.voice_event.emit(f"Microphone unavailable: {error}")
         finally:
             hud.set_listening(False)
 

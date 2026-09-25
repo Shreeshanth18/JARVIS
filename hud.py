@@ -10,6 +10,7 @@ from PyQt5.QtWidgets import QHBoxLayout, QLabel, QLineEdit, QPushButton, QVBoxLa
 class JarvisHUD(QWidget):
     command_received = pyqtSignal(str)
     ai_response = pyqtSignal(str, bool)
+    voice_event = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -24,6 +25,7 @@ class JarvisHUD(QWidget):
         self.history = []
         self._build_controls()
         self.ai_response.connect(self._receive_ai_response)
+        self.voice_event.connect(self._show_voice_event)
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_scene)
         self.timer.start(50)
@@ -102,6 +104,12 @@ class JarvisHUD(QWidget):
         self.response_text = text
         self.response.setText(text)
         self.state_label.setText(self.voice_state)
+        self.update()
+
+    def _show_voice_event(self, text):
+        self.voice_state = "VOICE INPUT RECEIVED"
+        self.state_label.setText(self.voice_state)
+        self.command_text = text.upper()
         self.update()
 
     def set_listening(self, listening):

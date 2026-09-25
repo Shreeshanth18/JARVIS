@@ -18,7 +18,9 @@ def load_local_env():
 				continue
 			line = line.removeprefix("$env:")
 			name, value = line.split("=", 1)
-			os.environ.setdefault(name.strip(), value.strip().strip('"\''))
+			value = value.split("#", 1)[0].strip().strip('"\'')
+			if value and value != "PASTE_NEW_OPENAI_KEY_HERE":
+				os.environ.setdefault(name.strip(), value)
 
 
 load_local_env()

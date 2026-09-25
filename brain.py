@@ -21,6 +21,11 @@ class JarvisCore:
         self.hud.set_activity(command)
         normalized = command.lower()
 
+        if normalized in {"jarvis", "hey jarvis", "ok jarvis"}:
+            response = "Yes, I am listening. What do you need?"
+            self.hud.log(response)
+            return response
+
         if "cpu" in normalized:
             return self.f.cpu()
 
