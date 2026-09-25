@@ -12,6 +12,7 @@ class JarvisCore:
 
         self.hud = hud
         self.f = Features(hud)
+        self.request_id = 0
 
     def process(self,command):
         command = command.strip()
@@ -19,6 +20,8 @@ class JarvisCore:
             return "Tell me what you need."
 
         self.hud.set_activity(command)
+        self.request_id += 1
+        request_id = self.request_id
         normalized = command.lower()
 
         if normalized in {"jarvis", "hey jarvis", "ok jarvis"}:
@@ -85,7 +88,7 @@ class JarvisCore:
             self.hud.log(response)
             return response
         self.hud.ai_response.emit("JARVIS is thinking...", False)
-        threading.Thread(target=self._stream_ai, args=(command,), daemon=True).start()
+        threading.Thread(target=self._stream_ai, args=(command, request_id), daemon=True).start()
         return None
 
     def _ask_ai(self, command):
@@ -126,7 +129,7 @@ class JarvisCore:
         except (urllib.error.URLError, KeyError, json.JSONDecodeError) as error:
             return f"The AI service is unavailable: {error}"
 
-    def _stream_ai(self, command):
+    def _stream_ai(self, command, request_id):
         api_key = os.getenv("OPENAI_API_KEY")
         payload = json.dumps({
             "model": os.getenv("JARVIS_MODEL", "gpt-4o-mini"),
@@ -156,8 +159,10 @@ class JarvisCore:
                     token = json.loads(data).get("choices", [{}])[0].get("delta", {}).get("content", "")
                     if token:
                         answer += token
-                        self.hud.ai_response.emit(answer, False)
-            self.hud.ai_response.emit(answer or "The AI returned an empty response.", True)
+                        if request_id == self.request_id:
+                            self.hud.ai_response.emit(answer, False)
+            if request_id == self.request_id:
+                self.hud.ai_response.emit(answer or "The AI returned an empty response.", True)
         except urllib.error.HTTPError as error:
             details = error.read().decode("utf-8", errors="replace")
             if error.code == 401:
@@ -170,6 +175,8 @@ class JarvisCore:
                 message = "The selected AI model is unavailable for this key. Set JARVIS_MODEL to a model enabled for your account."
             else:
                 message = f"The AI service returned HTTP {error.code}."
-            self.hud.ai_response.emit(message, True)
+            if request_id == self.request_id:
+                self.hud.ai_response.emit(message, True)
         except (urllib.error.URLError, json.JSONDecodeError, KeyError) as error:
-            self.hud.ai_response.emit(f"The AI service is unavailable: {error}", True)
+            if request_id == self.request_id:
+                self.hud.ai_response.emit(f"The AI service is unavailable: {error}", True)
