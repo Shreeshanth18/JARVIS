@@ -17,12 +17,14 @@ class JarvisHUD(QWidget):
         self.setWindowTitle("JARVIS // PERSONAL INTELLIGENCE")
         self.setMinimumSize(1100, 720)
         self.resize(1480, 880)
-        self.setStyleSheet("QWidget { color: #d9faff; font-family: Segoe UI; } QLineEdit { background: #07131c; border: 1px solid #245b67; border-radius: 8px; padding: 14px; color: #e9feff; font-size: 15px; } QPushButton { background: #12a7a0; border: 0; border-radius: 8px; padding: 12px 22px; color: #031215; font-weight: bold; } QPushButton:hover { background: #42d5c5; } QLabel#title { color: #eaffff; font-size: 22px; font-weight: 700; } QLabel#muted { color: #71939a; font-size: 11px; letter-spacing: 1px; } QLabel#reply { color: #e2fbfb; font-size: 17px; }")
+        self.setStyleSheet("QWidget { color: #d9faff; font-family: Segoe UI; } QLineEdit { background: #06131b; border: 1px solid #236d78; border-radius: 10px; padding: 15px; color: #e9feff; font-size: 15px; selection-background-color: #1c777b; } QPushButton { background: #19c5b4; border: 0; border-radius: 10px; padding: 13px 24px; color: #031215; font-weight: 700; } QPushButton:hover { background: #6ceadd; } QLabel#title { color: #eaffff; font-size: 24px; font-weight: 700; } QLabel#muted { color: #71939a; font-size: 11px; letter-spacing: 1px; } QLabel#reply { color: #e2fbfb; font-size: 17px; }")
         self.phase = 0
         self.command_text = "Awaiting instruction"
         self.response_text = "Systems online. Ask me anything."
         self.voice_state = "VOICE LINK: STANDBY"
         self.history = []
+        self.pulse = 0.0
+        self.particles = [(math.sin(index * 1.7) * 0.5 + 0.5, math.cos(index * 2.3) * 0.5 + 0.5, index % 3) for index in range(34)]
         self._build_controls()
         self.ai_response.connect(self._receive_ai_response)
         self.voice_event.connect(self._show_voice_event)
@@ -32,7 +34,7 @@ class JarvisHUD(QWidget):
 
     def _build_controls(self):
         root = QVBoxLayout(self)
-        root.setContentsMargins(38, 30, 38, 30)
+        root.setContentsMargins(42, 32, 42, 30)
         root.setSpacing(14)
         header = QHBoxLayout()
         title = QLabel("JARVIS")
@@ -52,12 +54,13 @@ class JarvisHUD(QWidget):
         self.response.setObjectName("reply")
         self.response.setWordWrap(True)
         self.response.setMinimumHeight(76)
+        self.response.setMaximumWidth(720)
         root.addWidget(self.response)
         row = QHBoxLayout()
         self.input = QLineEdit()
         self.input.setPlaceholderText("Ask JARVIS to open a site, inspect the system, create a file...")
         self.input.returnPressed.connect(self.submit_text)
-        row.addWidget(self.input)
+        row.addWidget(self.input, 1)
         button = QPushButton("SEND  >")
         button.clicked.connect(self.submit_text)
         row.addWidget(button)
@@ -89,6 +92,7 @@ class JarvisHUD(QWidget):
         self.voice_state = "PROCESSING REQUEST"
         self.state_label.setText(self.voice_state)
         self.history.append(("YOU", command))
+        self.pulse = 1.0
         self.update()
 
     def log(self, text):
@@ -96,6 +100,7 @@ class JarvisHUD(QWidget):
         self.response.setText(self.response_text)
         self.voice_state = "VOICE LINK: READY"
         self.state_label.setText(self.voice_state)
+        self.history.append(("JARVIS", str(text)))
         self.update()
 
     def _receive_ai_response(self, text, finished):
@@ -104,6 +109,8 @@ class JarvisHUD(QWidget):
         self.response_text = text
         self.response.setText(text)
         self.state_label.setText(self.voice_state)
+        if finished:
+            self.history.append(("JARVIS", text))
         self.update()
 
     def _show_voice_event(self, text):
@@ -115,10 +122,12 @@ class JarvisHUD(QWidget):
     def set_listening(self, listening):
         self.voice_state = "MICROPHONE: LISTENING" if listening else "VOICE LINK: READY"
         self.state_label.setText(self.voice_state)
+        self.pulse = 1.0 if listening else self.pulse
         self.update()
 
     def update_scene(self):
         self.phase = (self.phase + 2) % 3600
+        self.pulse = max(0.0, self.pulse - 0.018)
         self.clock_label.setText(time.strftime("%H:%M:%S  /  %d %b %Y").upper())
         self.update()
 
@@ -132,16 +141,25 @@ class JarvisHUD(QWidget):
         background.setColorAt(1, QColor("#020508"))
         painter.fillRect(self.rect(), background)
         self._draw_grid(painter, width, height)
+        self._draw_scanlines(painter, width, height)
         self._draw_header(painter, width)
         self._draw_reactor(painter, width * 0.67, height * 0.45)
         self._draw_telemetry(painter, width, height)
         self._draw_side_panel(painter, width, height)
 
     def _draw_grid(self, painter, width, height):
-        painter.setPen(QPen(QColor(20, 100, 116, 42), 1))
-        for x in range(0, width, 64):
+        painter.setPen(QPen(QColor(26, 118, 128, 30), 1))
+        for x in range(0, width, 72):
             painter.drawLine(x, 0, x, height)
-        for y in range(0, height, 64):
+        for y in range(0, height, 72):
+            painter.drawLine(0, y, width, y)
+
+    def _draw_scanlines(self, painter, width, height):
+        scan_y = (self.phase * 2) % (height + 180) - 90
+        painter.setPen(QPen(QColor(70, 230, 220, 18), 2))
+        painter.drawLine(0, scan_y, width, scan_y)
+        painter.setPen(QPen(QColor(80, 220, 220, 10), 1))
+        for y in range(0, height, 5):
             painter.drawLine(0, y, width, y)
 
     def _draw_header(self, painter, width):
@@ -154,30 +172,75 @@ class JarvisHUD(QWidget):
         painter.drawText(width - 220, 63, time.strftime("%d %b %Y").upper())
 
     def _draw_reactor(self, painter, cx, cy):
-        radius = min(self.width(), self.height()) * 0.22
+        radius = min(self.width(), self.height()) * (0.205 + self.pulse * 0.012)
         glow = QRadialGradient(QPointF(cx, cy), radius * 1.3)
-        glow.setColorAt(0, QColor(24, 190, 210, 70))
+        glow.setColorAt(0, QColor(26, 225, 204, 110))
         glow.setColorAt(0.55, QColor(12, 90, 120, 25))
         glow.setColorAt(1, QColor(0, 0, 0, 0))
         painter.setBrush(glow)
         painter.setPen(Qt.NoPen)
         painter.drawEllipse(QPointF(cx, cy), radius * 1.3, radius * 1.3)
         painter.setBrush(Qt.NoBrush)
-        painter.setPen(QPen(QColor("#28d9e8"), 2))
-        for ring in (0.48, 0.64, 0.80, 0.96):
+        painter.setPen(QPen(QColor(38, 217, 232, 200), 2))
+        for ring in (0.42, 0.59, 0.76, 0.96):
             painter.drawEllipse(QPointF(cx, cy), radius * ring, radius * ring)
+        self._draw_orbit(painter, cx, cy, radius * 0.82, self.phase * 0.8, 7, 4)
+        self._draw_orbit(painter, cx, cy, radius * 1.08, -self.phase * 0.45, 5, 3)
+        self._draw_particles(painter, cx, cy, radius)
         painter.setPen(QPen(QColor(100, 240, 255, 170), 3))
         for index in range(24):
             angle = math.radians(self.phase * 0.7 + index * 15)
             inner = radius * (0.99 if index % 2 else 1.05)
             outer = radius * 1.12
             painter.drawLine(QPointF(cx + math.cos(angle) * inner, cy + math.sin(angle) * inner), QPointF(cx + math.cos(angle) * outer, cy + math.sin(angle) * outer))
-        painter.setPen(QPen(QColor("#b5fbff"), 2))
-        painter.setFont(QFont("Consolas", 20, QFont.Bold))
+        core = QRadialGradient(QPointF(cx, cy), radius * 0.5)
+        core.setColorAt(0, QColor(184, 255, 245, 245))
+        core.setColorAt(0.3, QColor(52, 220, 208, 220))
+        core.setColorAt(1, QColor(10, 96, 112, 30))
+        painter.setBrush(core)
+        painter.setPen(QPen(QColor(130, 255, 245, 180), 2))
+        painter.drawEllipse(QPointF(cx, cy), radius * 0.34, radius * 0.34)
+        painter.setBrush(Qt.NoBrush)
+        painter.setPen(QPen(QColor("#d7fffb"), 2))
+        painter.setFont(QFont("Segoe UI", 20, QFont.Bold))
         painter.drawText(int(cx - radius), int(cy - 8), int(radius * 2), 30, Qt.AlignCenter, "J A R V I S")
         painter.setFont(QFont("Consolas", 9))
         painter.setPen(QColor("#65f4ff"))
         painter.drawText(int(cx - radius), int(cy + 24), int(radius * 2), 20, Qt.AlignCenter, self.command_text[:32])
+        self._draw_waveform(painter, cx, cy + radius * 1.38, radius * 0.72)
+
+    def _draw_orbit(self, painter, cx, cy, radius, angle, count, dot_size):
+        painter.setPen(QPen(QColor(93, 239, 228, 115), 1))
+        painter.drawEllipse(QPointF(cx, cy), radius, radius * 0.36)
+        painter.setBrush(QColor("#7affef"))
+        painter.setPen(Qt.NoPen)
+        for index in range(count):
+            current = math.radians(angle + index * (360 / count))
+            x = cx + math.cos(current) * radius
+            y = cy + math.sin(current) * radius * 0.36
+            painter.drawEllipse(QPointF(x, y), dot_size, dot_size)
+        painter.setBrush(Qt.NoBrush)
+
+    def _draw_particles(self, painter, cx, cy, radius):
+        painter.setPen(Qt.NoPen)
+        for index, (x_ratio, y_ratio, layer) in enumerate(self.particles):
+            angle = self.phase * (0.15 + layer * 0.08) + index * 43
+            distance = radius * (1.18 + x_ratio * 0.35)
+            x = cx + math.cos(math.radians(angle)) * distance
+            y = cy + math.sin(math.radians(angle)) * distance * 0.62
+            alpha = 70 + int(80 * ((math.sin(math.radians(angle)) + 1) / 2))
+            painter.setBrush(QColor(92, 239, 228, alpha))
+            painter.drawEllipse(QPointF(x, y), 1.5 + layer, 1.5 + layer)
+
+    def _draw_waveform(self, painter, cx, y, width):
+        painter.setPen(QPen(QColor(92, 239, 228, 175), 2))
+        points = []
+        for index in range(31):
+            x = cx - width + index * (width * 2 / 30)
+            amplitude = 5 + 13 * (0.5 + 0.5 * math.sin(self.phase * 0.08 + index * 0.9))
+            points.append(QPointF(x, y + math.sin(self.phase * 0.11 + index * 0.65) * amplitude))
+        for first, second in zip(points, points[1:]):
+            painter.drawLine(first, second)
 
     def _draw_telemetry(self, painter, width, height):
         cpu = psutil.cpu_percent()
