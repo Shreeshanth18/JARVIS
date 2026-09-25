@@ -11,6 +11,7 @@ class JarvisHUD(QWidget):
     command_received = pyqtSignal(str)
     ai_response = pyqtSignal(str, bool)
     voice_event = pyqtSignal(str)
+    wake_detected = pyqtSignal()
 
     def __init__(self):
         super().__init__()

@@ -28,6 +28,8 @@ def start_voice(hud):
 
     def listen():
         wake_armed = False
+        last_command = ""
+        last_command_at = 0.0
         try:
             with sr.Microphone() as source:
                 recognizer.adjust_for_ambient_noise(source, duration=0.6)
@@ -43,14 +45,25 @@ def start_voice(hud):
                         command = recognizer.recognize_google(audio).strip()
                         hud.voice_event.emit(f"Heard: {command}")
                         normalized = command.lower()
-                        if "jarvis" in normalized:
+                        heard_wake_word = "jarvis" in normalized
+                        if not heard_wake_word and not wake_armed:
+                            hud.voice_event.emit("Waiting for wake word: JARVIS")
+                            continue
+                        if heard_wake_word:
                             wake_index = normalized.find("jarvis")
                             command = command[wake_index + len("jarvis"):].strip(" ,.!?")
                         if not command:
                             wake_armed = True
                             hud.voice_event.emit("Wake word accepted. Listening for your command...")
+                            hud.wake_detected.emit()
                             continue
                         wake_armed = False
+                        now = time.monotonic()
+                        if command.lower() == last_command and now - last_command_at < 4:
+                            hud.voice_event.emit("Duplicate command ignored")
+                            continue
+                        last_command = command.lower()
+                        last_command_at = now
                         hud.command_received.emit(command)
                     except (sr.WaitTimeoutError, sr.UnknownValueError):
                         continue

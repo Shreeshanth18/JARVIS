@@ -44,6 +44,7 @@ def speak_ai_response(text, finished):
 
 hud.command_received.connect(handle_command)
 hud.ai_response.connect(speak_ai_response)
+hud.wake_detected.connect(lambda: speak("Yes, I am listening. What do you need?"))
 start_voice(hud)
 
 hud.show()
