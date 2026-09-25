@@ -43,9 +43,6 @@ def start_voice(hud):
                         command = recognizer.recognize_google(audio).strip()
                         hud.voice_event.emit(f"Heard: {command}")
                         normalized = command.lower()
-                        if "jarvis" not in normalized and not wake_armed:
-                            hud.voice_event.emit("Waiting for wake word: JARVIS")
-                            continue
                         if "jarvis" in normalized:
                             wake_index = normalized.find("jarvis")
                             command = command[wake_index + len("jarvis"):].strip(" ,.!?")
@@ -60,6 +57,9 @@ def start_voice(hud):
                     except sr.RequestError as error:
                         hud.voice_event.emit(f"Speech recognition unavailable: {error}")
                         break
+                    except Exception as error:
+                        hud.voice_event.emit(f"Voice input error: {error}")
+                        time.sleep(0.5)
         except (OSError, AttributeError) as error:
             hud.voice_event.emit(f"Microphone unavailable: {error}")
         finally:
