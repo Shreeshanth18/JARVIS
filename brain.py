@@ -145,7 +145,14 @@ class JarvisCore:
                         self.hud.ai_response.emit(answer, False)
             self.hud.ai_response.emit(answer or "The AI returned an empty response.", True)
         except urllib.error.HTTPError as error:
-            message = "AI authentication failed. Use a valid OpenAI API key and restart JARVIS." if error.code == 401 else f"The AI service returned HTTP {error.code}."
+            if error.code == 401:
+                message = "AI authentication failed. Check that this is an active OpenAI API key, then restart JARVIS."
+            elif error.code == 429:
+                message = "OpenAI access is rate-limited or has no available credits for this account."
+            elif error.code == 404:
+                message = "The selected AI model is unavailable for this key. Set JARVIS_MODEL to a model enabled for your account."
+            else:
+                message = f"The AI service returned HTTP {error.code}."
             self.hud.ai_response.emit(message, True)
         except (urllib.error.URLError, json.JSONDecodeError, KeyError) as error:
             self.hud.ai_response.emit(f"The AI service is unavailable: {error}", True)
