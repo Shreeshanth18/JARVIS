@@ -37,7 +37,8 @@ def handle_command(command):
 
 
 def speak_ai_response(text, finished):
-	if finished:
+	failure_markers = ("authentication failed", "no API credits", "rate-limiting", "service returned HTTP", "service is unavailable")
+	if finished and not any(marker in text.lower() for marker in failure_markers):
 		speak(text)
 
 
